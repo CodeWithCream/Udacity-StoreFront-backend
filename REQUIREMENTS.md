@@ -6,19 +6,29 @@ These are the notes from a meeting with the frontend developer that describe wha
 ## API Endpoints
 #### Products
 - Index 
+    - route: '/products' [GET]
 - Show
+    - route: '/products/:id' [GET]
 - Create [token required]
+    - route: '/products' [POST]
 - [OPTIONAL] Top 5 most popular products 
+    - route: '/products/popular' [GET]
 - [OPTIONAL] Products by category (args: product category)
+    - route: '/products?category=food' [GET]
 
 #### Users
 - Index [token required]
+    - route: '/users' [GET]
 - Show [token required]
+    - route: '/users/:id' [GET]
 - Create N[token required]
+    - route: '/users' [POST]
 
 #### Orders
 - Current Order by user (args: user id)[token required]
+    - route: '/users/:id/currentOrder' [GET]
 - [OPTIONAL] Completed Orders by user (args: user id)[token required]
+    - route: '/users/:id/orders?completed=true' [GET]
 
 ## Data Shapes
 #### Product
@@ -40,3 +50,8 @@ These are the notes from a meeting with the frontend developer that describe wha
 - user_id
 - status of order (active or complete)
 
+## Database tables
+- products (id: SERIAL PRIMARY KEY, name: VARCHAR, price: NUMERIC, category: VARCHAR(50))
+- users(id: SERIAL PRIMARY KEY, first_name: VARCHAR(100), last_name: VARCHAR(100), password_digest VARCHAR)
+- orders(id: SERIAL PRIMARY KEY, user_id: bigint REFERENCES users(id), is_complete: BOOLEAN)
+- order_products (order_id: bigint REFERENCES orders(id), product_id: bigint REFERENCES products(id), quantity: INTEGER)
