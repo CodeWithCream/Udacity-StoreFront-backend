@@ -19,7 +19,7 @@ describe("Test user model", () => {
 			expect(user.id).toBeDefined();
 			expect(user.password).toBeUndefined();
 			expect(user.passwordDigest).toBeDefined();
-			checkUserProperties(user, testData[i++]);
+			checkUserProperties(user, initTestData[i++]);
 		});
 	});
 
@@ -29,7 +29,7 @@ describe("Test user model", () => {
 
 	it("show method should return the correct user", async () => {
 		const user = await store.show(1);
-		checkUserProperties(testData[0], user);
+		checkUserProperties(initTestData[0], user);
 	});
 
 	it("show method should throw error when user not exists", async () => {
@@ -48,7 +48,7 @@ describe("Test user model", () => {
 	it("create method should add an user", async () => {
 		const userToCreate = {
 			firstname: "User",
-			lastname: "New Uer",
+			lastname: "New User",
 			username: "nuser",
 			password: "n_password",
 		};
@@ -73,7 +73,7 @@ describe("Test user model", () => {
 		);
 
 		const users = await store.index();
-		expect(users.length).toEqual(testData.length); //no new users added
+		expect(users.length).toEqual(initTestData.length); //no new users added
 	});
 
 	it("create method should throw an error when username not unique", async () => {
@@ -91,7 +91,7 @@ describe("Test user model", () => {
 		);
 
 		const users = await store.index();
-		expect(users.length).toEqual(testData.length); //no new users added
+		expect(users.length).toEqual(initTestData.length); //no new users added
 	});
 
 	it("should have a delete method", () => {
@@ -100,17 +100,17 @@ describe("Test user model", () => {
 
 	it("delete method should remove the user", async () => {
 		const deletedUser = await store.delete(1);
-		checkUserProperties(deletedUser, testData[0]);
+		checkUserProperties(deletedUser, initTestData[0]);
 
 		const users = await store.index();
 
-		expect(users.length).toEqual(testData.length - 1);
+		expect(users.length).toEqual(initTestData.length - 1);
 		let i = 1;
 		users.forEach((user) => {
 			expect(user.id).toBeDefined();
 			expect(user.password).toBeUndefined();
 			expect(user.passwordDigest).toBeDefined();
-			checkUserProperties(user, testData[i++]);
+			checkUserProperties(user, initTestData[i++]);
 		});
 	});
 
@@ -119,12 +119,46 @@ describe("Test user model", () => {
 		expect(deletedUser).toBeUndefined();
 	});
 
+	it("should have a createN method", () => {
+		expect(store.createN).toBeDefined();
+	});
+
+	it("createN method should add users", async () => {
+		const createdUsers = await store.createN(newUsersData);
+
+		let i = 0;
+		createdUsers.forEach((user) => {
+			expect(user.id).toBeDefined();
+			expect(user.password).toBeUndefined();
+			expect(user.passwordDigest).toBeDefined();
+			checkUserProperties(user, newUsersData[i++]);
+		});
+
+		const users = await store.index();
+		expect(users.length).toEqual(initTestData.length + newUsersData.length);
+	});
+
+	it("createN method should rollback if some user has error", async () => {
+		const usersToCreate = JSON.parse(JSON.stringify(newUsersData)); //create copy of array
+
+		usersToCreate[1].password = undefined;
+
+		await expectAsync(store.createN(usersToCreate)).toBeRejectedWith(
+			new Error(
+				`Could not create users. Error: Could not add new user ${usersToCreate[1].username}. Password must be defined to create a new user.`
+			)
+		);
+
+		const users = await store.index();
+		expect(users.length).toEqual(initTestData.length); //no new users
+	});
+
 	afterEach(async function () {
 		await clearTestData();
 	});
 });
 
-const testData: Array<User> = [
+const initTestData: Array<User> = [
 	{
 		firstname: "Andrea",
 		lastname: "Knez Karacic",
@@ -157,8 +191,29 @@ const testData: Array<User> = [
 	},
 ];
 
+const newUsersData: Array<User> = [
+	{
+		firstname: "User1",
+		lastname: "New User",
+		username: "nuser1",
+		password: "n_password1",
+	},
+	{
+		firstname: "User2",
+		lastname: "New User",
+		username: "nuser2",
+		password: "n_password2",
+	},
+	{
+		firstname: "User3",
+		lastname: "New User",
+		username: "nuser3",
+		password: "n_password3",
+	},
+];
+
 async function addTestData(): Promise<void> {
-	for await (const user of testData) {
+	for await (const user of initTestData) {
 		await store.create(user);
 	}
 }

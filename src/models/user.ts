@@ -86,6 +86,56 @@ export class UserStore {
 		}
 	}
 
+	async createN(users: User[]): Promise<User[]> {
+		try {
+			const conn = await Client.connect();
+			const createdUsers = new Array<User>();
+
+			try {
+				await conn.query("BEGIN");
+				const sql =
+					"INSERT INTO users(first_name, last_name, username, password_digest) VALUES ($1,$2,$3,$4) RETURNING *";
+
+				for await (const user of users) {
+					if (user.password === undefined) {
+						throw new Error(
+							`Could not add new user ${user.username}. Password must be defined to create a new user.`
+						);
+					}
+
+					const salt_rounds =
+						process.env.salt_rounds ?? this.defaultSaltRounds;
+					const hash = bcrypt.hashSync(
+						user.password + process.env.pepper,
+						parseInt(salt_rounds)
+					);
+
+					const result = await conn.query(sql, [
+						user.firstname,
+						user.lastname,
+						user.username,
+						hash,
+					]);
+
+					const createdUser = this.mapRows(result.rows)[0];
+
+					createdUsers.push(createdUser);
+				}
+
+				await conn.query("COMMIT");
+
+				return createdUsers;
+			} catch (error) {
+				await conn.query("ROLLBACK");
+				throw error;
+			} finally {
+				conn.release();
+			}
+		} catch (error) {
+			throw new Error(`Could not create users. ${error}`);
+		}
+	}
+
 	async delete(id: number): Promise<User> {
 		try {
 			const sql = "DELETE FROM users WHERE id=($1) RETURNING *";
@@ -99,9 +149,7 @@ export class UserStore {
 
 			return deletedUser;
 		} catch (error) {
-			throw new Error(
-				`Could not delete user with id = ${id}. ${error}`
-			);
+			throw new Error(`Could not delete user with id = ${id}. ${error}`);
 		}
 	}
 
