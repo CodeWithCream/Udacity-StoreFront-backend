@@ -1,7 +1,6 @@
 import { QueryResult } from "pg";
 import Client from "../database";
 import { OrderProduct } from "./order_products";
-import { Product } from "./product";
 
 export type Order = {
 	id: number;
@@ -164,7 +163,7 @@ export class OrderStore {
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	private mapOrdersResult(result: QueryResult<any>) {
+	private mapOrdersResult(result: QueryResult<any>): Order[] {
 		const orders = new Array<Order>();
 		let currentOrder: Order;
 		result.rows.forEach((orderRow) => {

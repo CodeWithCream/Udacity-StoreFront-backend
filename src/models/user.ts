@@ -5,16 +5,16 @@ import dotenv from "dotenv";
 dotenv.config();
 
 export type User = {
-	id: number;
+	id?: number;
 	firstname: string;
 	lastname: string;
 	username: string;
-	password: string | undefined;
-	password_digest: string;
+	password?: string;
+	passwordDigest?: string;
 };
 
 export class UserStore {
-	defaultSaltRounds = 10;
+	defaultSaltRounds = "10";
 	async index(): Promise<User[]> {
 		try {
 			const conn = await Client.connect();
@@ -24,9 +24,9 @@ export class UserStore {
 
 			conn.release();
 
-			return result.rows;
+			return this.mapRows(result.rows);
 		} catch (error) {
-			throw new Error(`Could not get users. Error: ${error}`);
+			throw new Error(`Could not get users. ${error}`);
 		}
 	}
 
@@ -39,11 +39,13 @@ export class UserStore {
 
 			conn.release();
 
-			return result.rows[0];
+			if (result.rows.length === 0) {
+				throw new Error("User doesn't exist.");
+			}
+
+			return this.mapRows(result.rows)[0];
 		} catch (error) {
-			throw new Error(
-				`Could not find user with id ${id}. Error: ${error}`
-			);
+			throw new Error(`Could not find user with id ${id}. ${error}`);
 		}
 	}
 
@@ -57,11 +59,13 @@ export class UserStore {
 
 			const conn = await Client.connect();
 			const sql =
-				"INSERT INTO users(firstname, lastname, username, password_digest) VALUES ($1,$2,$3,$4) RETURNING *";
+				"INSERT INTO users(first_name, last_name, username, password_digest) VALUES ($1,$2,$3,$4) RETURNING *";
 
+			const salt_rounds =
+				process.env.salt_rounds ?? this.defaultSaltRounds;
 			const hash = bcrypt.hashSync(
 				user.password + process.env.pepper,
-				process.env.salt_rounds ?? this.defaultSaltRounds
+				parseInt(salt_rounds)
 			);
 
 			const result = await conn.query(sql, [
@@ -71,33 +75,49 @@ export class UserStore {
 				hash,
 			]);
 
-			const createdUser = result.rows[0];
+			const createdUser = this.mapRows(result.rows)[0];
 			conn.release();
 
 			return createdUser;
 		} catch (error) {
 			throw new Error(
-				`Could not add new user ${user.username}. Error: ${error}`
+				`Could not add new user ${user.username}. ${error}`
 			);
 		}
 	}
 
-	async delete(id: string): Promise<User> {
+	async delete(id: number): Promise<User> {
 		try {
-			const sql = "DELETE FROM users WHERE id=($1)";
+			const sql = "DELETE FROM users WHERE id=($1) RETURNING *";
 			const conn = await Client.connect();
 
 			const result = await conn.query(sql, [id]);
 
-			const deletedUser = result.rows[0];
+			const deletedUser = this.mapRows(result.rows)[0];
 
 			conn.release();
 
 			return deletedUser;
 		} catch (error) {
 			throw new Error(
-				`Could not delete user with id = ${id}. Error: ${error}`
+				`Could not delete user with id = ${id}. ${error}`
 			);
 		}
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	private mapRows(rows: any[]): User[] {
+		const users = new Array<User>();
+		rows.forEach((row) =>
+			users.push({
+				id: row.id,
+				firstname: row.first_name,
+				lastname: row.last_name,
+				username: row.username,
+				passwordDigest: row.password_digest,
+				password: row.password,
+			})
+		);
+		return users;
 	}
 }
