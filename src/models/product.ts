@@ -2,7 +2,7 @@ import Client from "../database";
 import { ProductCategory } from "./product_category";
 
 export type Product = {
-	id: number;
+	id?: number;
 	name: string;
 	price: number;
 	category: ProductCategory;
@@ -18,9 +18,9 @@ export class ProductStore {
 
 			conn.release();
 
-			return result.rows;
+			return this.mapRows(result.rows);
 		} catch (error) {
-			throw new Error(`Could not get products. Error: ${error}`);
+			throw new Error(`Could not get products. ${error}`);
 		}
 	}
 
@@ -31,11 +31,15 @@ export class ProductStore {
 
 			const result = await conn.query(sql, [id]);
 
-			conn.release();
+			conn.release();			
 
-			return result.rows[0];
+			if (result.rows.length === 0) {
+				throw new Error("Product doesn't exist.");
+			}
+
+			return this.mapRows(result.rows)[0];
 		} catch (error) {
-			throw new Error(`Could not find product ${id}. Error: ${error}`);
+			throw new Error(`Could not find product with id ${id}. ${error}`);
 		}
 	}
 
@@ -50,33 +54,33 @@ export class ProductStore {
 				product.price,
 				product.category,
 			]);
-			const createdProduct = result.rows[0];
+			const createdProduct = this.mapRows(result.rows)[0];
 			conn.release();
 
 			return createdProduct;
 		} catch (error) {
 			throw new Error(
-				`Could not create new product ${product.name}. Error: ${error}`
+				`Could not create new product ${product.name}. ${error}`
 			);
 		}
 	}
 
-	async delete(id: string): Promise<Product> {
+	async delete(id: number): Promise<Product> {
 		try {
-			const sql = "DELETE FROM products WHERE id=($1);";
+			const sql = "DELETE FROM products WHERE id=($1) RETURNING *";
 			//if product is in some orders, database will throw an error so product will not be deleted so we don't need to check it manually for this app
 			const conn = await Client.connect();
 
 			const result = await conn.query(sql, [id]);
 
-			const deletedProduct = result.rows[0];
+			const deletedProduct = this.mapRows(result.rows)[0];
 
 			conn.release();
 
 			return deletedProduct;
 		} catch (error) {
 			throw new Error(
-				`Could not delete product with id = ${id}. Error: ${error}`
+				`Could not delete product with id = ${id}. ${error}`
 			);
 		}
 	}
@@ -96,9 +100,9 @@ export class ProductStore {
 
 			conn.release();
 
-			return result.rows;
+			return this.mapRows(result.rows);
 		} catch (error) {
-			throw new Error(`Could not get popular products. Error: ${error}`);
+			throw new Error(`Could not get popular products. ${error}`);
 		}
 	}
 
@@ -114,11 +118,25 @@ export class ProductStore {
 
 			conn.release();
 
-			return result.rows;
+			return this.mapRows(result.rows);
 		} catch (error) {
 			throw new Error(
-				`Could not get products with category ${category}. Error: ${error}`
+				`Could not get products with category ${category}. ${error}`
 			);
 		}
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	private mapRows(rows: any[]): Product[] {
+		const products = new Array<Product>();
+		rows.forEach((row) => {
+			products.push({
+				id: row.id,
+				name: row.name,
+				price: parseFloat(row.price),
+				category: row.category as ProductCategory,
+			});
+		});
+		return products;
 	}
 }
