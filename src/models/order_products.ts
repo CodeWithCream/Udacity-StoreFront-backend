@@ -1,6 +1,7 @@
 import { Product } from "./product";
 
 export type OrderProduct = {
-	product: Product;
+	productId: number;
+	product?: Product;
 	quanity: number;
 };

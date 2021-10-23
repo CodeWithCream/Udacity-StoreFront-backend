@@ -1,15 +1,17 @@
-import { QueryResult } from "pg";
+import { raw } from "body-parser";
+import { Pool, QueryResult } from "pg";
 import Client from "../database";
 import { OrderProduct } from "./order_products";
 
 export type Order = {
-	id: number;
+	id?: number;
 	userId: number;
 	isCompleted: boolean;
-	products: OrderProduct[];
+	products?: OrderProduct[];
 };
 
 export class OrderStore {
+	//returns basic order data
 	async index(): Promise<Order[]> {
 		try {
 			const conn = await Client.connect();
@@ -19,7 +21,7 @@ export class OrderStore {
 
 			conn.release();
 
-			return result.rows;
+			return this.mapRows(result.rows);
 		} catch (error) {
 			throw new Error(`Could not get orders. Error: ${error}`);
 		}
@@ -28,53 +30,74 @@ export class OrderStore {
 	async show(id: number): Promise<Order> {
 		try {
 			const conn = await Client.connect();
-			const sql = `SELECT orders.id, orders.is_completed, products.id as product_id, products.name, products.price, 
+			const sql = `SELECT orders.*, products.id as product_id, products.name, products.price, 
 			products.category, order_products.quantity  
 			FROM orders 
-			JOIN order_products ON orders.id=order_products.order_id
-			JOIN products ON order_products.product_id = products.id
+			LEFT OUTER JOIN order_products ON orders.id=order_products.order_id
+			LEFT OUTER JOIN products ON order_products.product_id = products.id
 			WHERE orders.id=($1)`;
 
 			const result = await conn.query(sql, [id]);
 
 			conn.release();
 
-			const orders = this.mapOrdersResult(result);
+			if (result.rows.length === 0) {
+				throw new Error("Order doesn't exist.");
+			}
+
+			const orders = this.mapOrdersResult(result.rows);
 
 			return orders[0];
 		} catch (error) {
-			throw new Error(`Could not find product ${id}. Error: ${error}`);
+			throw new Error(`Could not find order with id ${id}. ${error}`);
 		}
 	}
 
+	//create empty, active order for given user
 	async create(userId: number): Promise<Order> {
 		try {
 			const conn = await Client.connect();
-			const sql =
-				"INSERT INTO orders(user_id, is_completed) VALUES ($1,$2) RETURNING *";
+			//check active orders
+			try {
+				const ordersql =
+					"SELECT * FROM orders WHERE user_id=($1) AND is_completed IS false";
 
-			const result = await conn.query(sql, [userId, false]);
-			const createdOrder = result.rows[0];
-			conn.release();
+				const selectResult = await conn.query(ordersql, [userId]);
 
-			return createdOrder;
+				if (selectResult.rows.length > 0) {
+					throw new Error("User already has an active order.");
+				}
+
+				const sql =
+					"INSERT INTO orders(user_id, is_completed) VALUES ($1,$2) RETURNING *";
+
+				const insertResult = await conn.query(sql, [userId, false]);
+				const createdOrder = this.mapRows(insertResult.rows)[0];
+
+				conn.release();
+
+				return createdOrder;
+			} catch (error) {
+				conn.release();
+				throw error;
+			}
 		} catch (error) {
-			throw new Error(`Could not create new order. Error: ${error}`);
+			throw new Error(`Could not create new order. ${error}`);
 		}
 	}
 
-	async delete(id: string): Promise<Order> {
+	async delete(id: number): Promise<Order> {
 		try {
 			const conn = await Client.connect();
 
 			const orderProductsSql =
 				"DELETE FROM order_products WHERE order_id=($1)";
-			const ordersSql = "DELETE FROM orders WHERE id=($1)";
+			const ordersSql = "DELETE FROM orders WHERE id=($1) RETURNING *";
 
 			await conn.query(orderProductsSql, [id]);
 			const result = await conn.query(ordersSql, [id]);
 
-			const deletedProduct = result.rows[0];
+			const deletedProduct = this.mapRows(result.rows)[0];
 
 			conn.release();
 
@@ -90,102 +113,159 @@ export class OrderStore {
 		orderId: number,
 		productId: number,
 		quantity: number
-	): Promise<OrderProduct> {
-		// get order to see if it is open
+	): Promise<void> {
 		try {
-			const ordersql = "SELECT * FROM orders WHERE id=($1)";
 			const conn = await Client.connect();
 
-			const result = await conn.query(ordersql, [orderId]);
+			try {
+				// get order to see if it is open
+				const selectOrdersql = "SELECT * FROM orders WHERE id=($1)";
+				const selectResult = await conn.query(selectOrdersql, [
+					orderId,
+				]);
 
-			const order = result.rows[0];
+				if (selectResult.rows.length === 0) {
+					throw new Error("Order doesn't exist");
+				}
+				if (selectResult.rows[0].is_completed) {
+					throw new Error("Order is completed");
+				}
 
-			if (order.is_completed) {
-				throw new Error(
-					`Could not add product ${productId} to order ${orderId} because order is completed.`
+				//get existing product in order
+				const selectOrderProductSql =
+					"SELECT * FROM order_products WHERE order_Id=($1) AND product_id=($2)";
+				const orderProductsResult = await conn.query(
+					selectOrderProductSql,
+					[orderId, productId]
 				);
+
+				//no product in order
+				if (orderProductsResult.rows.length === 0) {
+					//add new product
+					const insertSql =
+						"INSERT INTO order_products (order_id, product_id, quantity) VALUES ($1,$2,$3)";
+					await conn.query(insertSql, [orderId, productId, quantity]);
+				} else {
+					/*product already in order*/
+					//update quantity
+					const currentQuantity = parseInt(
+						orderProductsResult.rows[0].quantity
+					);
+					const updateSql =
+						"UPDATE order_products SET quantity=($3) WHERE order_id=($1) AND product_id=($2)";
+					await conn.query(updateSql, [
+						orderId,
+						productId,
+						currentQuantity + quantity,
+					]);
+				}
+			} finally {
+				conn.release();
 			}
-
-			conn.release();
-		} catch (err) {
-			throw new Error(`${err}`);
-		}
-
-		try {
-			const conn = await Client.connect();
-
-			const sql =
-				"INSERT INTO order_products (order_id, product_id, quantity) VALUES ($1,$2,$3) RETURNING *";
-
-			const result = await conn.query(sql, [
-				orderId,
-				productId,
-				quantity,
-			]);
-
-			const addedProduct = result.rows[0];
-
-			conn.release();
-
-			return addedProduct;
 		} catch (error) {
 			throw new Error(
-				`Could not add product with id = ${productId} to order with id ${orderId}. Error: ${error}`
+				`Could not add product with id ${productId} to order with id ${orderId}. ${error}`
 			);
+		}
+	}
+
+	async completeOrder(id: number): Promise<void> {
+		try {
+			const conn = await Client.connect();
+			try {
+				const selectOrdersql = "SELECT * FROM orders WHERE id=($1)";
+				const selectResult = await conn.query(selectOrdersql, [id]);
+
+				if (selectResult.rows.length === 0) {
+					throw new Error("Order doesn't exist");
+				}
+
+				const sql =
+					"UPDATE orders SET is_completed = true WHERE id=($1)";
+				await conn.query(sql, [id]);
+			} finally {
+				conn.release();
+			}
+		} catch (error) {
+			throw new Error(`Could not complete order with id ${id}. ${error}`);
 		}
 	}
 
 	async showByUser(
 		userId: number,
-		isCompleted: boolean | undefined
+		isCompleted: boolean | undefined = undefined
 	): Promise<Order[]> {
 		try {
 			const conn = await Client.connect();
-			const sql = `SELECT orders.id, orders.is_completed, products.id as product_id, products.name, products.price, 
+			const sql = `SELECT orders.*, products.id as product_id, products.name, products.price, 
 			products.category, order_products.quantity  
 			FROM orders 
-			JOIN order_products ON orders.id=order_products.order_id
-			JOIN products ON order_products.product_id = products.id
+			LEFT OUTER JOIN order_products ON orders.id=order_products.order_id
+			LEFT OUTER JOIN products ON order_products.product_id = products.id
 			WHERE user_id=($1)
-				${isCompleted !== undefined ? " AND is_completed=($2)" : ""}
-				ORDERBY orders.id ASC`;
+			${isCompleted !== undefined ? "AND is_completed=($2)" : ""}
+			ORDER BY orders.id ASC`;
 
-			const result = await conn.query(sql, [userId, isCompleted]);
-
-			const orders = this.mapOrdersResult(result);
+			const parameters: (number | boolean | undefined)[] = [userId];
+			if (isCompleted !== undefined) {
+				parameters.push(isCompleted);
+			}
+			const result = await conn.query(sql, parameters);
+			const orders = this.mapOrdersResult(result.rows);
 
 			conn.release();
 
 			return orders;
 		} catch (error) {
-			throw new Error(`Could not get orders. Error: ${error}`);
+			throw new Error(`Could not get orders. ${error}`);
 		}
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	private mapOrdersResult(result: QueryResult<any>): Order[] {
+	private mapRows(rows: any[]): Order[] {
 		const orders = new Array<Order>();
-		let currentOrder: Order;
-		result.rows.forEach((orderRow) => {
-			if (orderRow.id !== currentOrder.id) {
+		rows.forEach((row) =>
+			orders.push({
+				id: row.id,
+				userId: parseInt(row.user_id),
+				isCompleted: row.is_completed,
+			})
+		);
+		return orders;
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	private mapOrdersResult(rows: any[]): Order[] {
+		const orders = new Array<Order>();
+		let currentOrder: Order | undefined = undefined;
+
+		rows.forEach((orderRow) => {
+			if (!currentOrder || orderRow.id !== currentOrder.id) {
 				currentOrder = {
 					id: orderRow.id,
-					userId: orderRow.userId,
+					userId: parseInt(orderRow.user_id),
 					isCompleted: orderRow.is_completed,
-					products: new Array<OrderProduct>(),
 				};
 				orders.push(currentOrder);
 			}
 
-			currentOrder.products.push({
-				quanity: orderRow.quantity,
-				product: {
-					id: orderRow.product_id,
-					name: orderRow.name,
-					price: orderRow.price,
-					category: orderRow.category,
-				},
-			});
+			if (!currentOrder.products) {
+				currentOrder.products = new Array<OrderProduct>();
+			}
+
+			if (orderRow.product_id !== null) {
+				//null is if no products in order
+				currentOrder.products.push({
+					quanity: orderRow.quantity,
+					productId: orderRow.product_id,
+					product: {
+						id: orderRow.product_id,
+						name: orderRow.name,
+						price: orderRow.price,
+						category: orderRow.category,
+					},
+				});
+			}
 		});
 		return orders;
 	}

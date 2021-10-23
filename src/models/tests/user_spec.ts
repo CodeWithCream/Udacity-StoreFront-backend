@@ -8,6 +8,10 @@ describe("Test user model", () => {
 		await addTestData();
 	});
 
+	afterEach(async function () {
+		await clearTestData();
+	});
+
 	it("should have an index method", () => {
 		expect(store.index).toBeDefined();
 	});
@@ -151,10 +155,6 @@ describe("Test user model", () => {
 
 		const users = await store.index();
 		expect(users.length).toEqual(initTestData.length); //no new users
-	});
-
-	afterEach(async function () {
-		await clearTestData();
 	});
 });
 

@@ -7,5 +7,6 @@ CREATE TABLE orders(
 CREATE TABLE order_products (
     order_id bigint REFERENCES orders(id),
     product_id bigint REFERENCES products(id),
-    quantity INTEGER
+    quantity INTEGER,
+    UNIQUE (order_id, product_id)
 );
