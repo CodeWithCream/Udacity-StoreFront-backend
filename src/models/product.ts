@@ -93,7 +93,7 @@ export class ProductStore {
 			FROM products 
 			JOIN order_products ON products.id=order_products.product_id
 			GROUP BY (products.id)
-			ORDERD BY COUNT(product_id) DESC
+			ORDER BY COUNT(product_id) DESC, id ASC
 			LIMIT ($1)`;
 
 			const result = await conn.query(sql, [count]);
@@ -110,9 +110,7 @@ export class ProductStore {
 		try {
 			const conn = await Client.connect();
 
-			const sql = `SELECT *
-			FROM products 
-			WHERE category = '($1)'`;
+			const sql = "SELECT * FROM products WHERE category = ($1)";
 
 			const result = await conn.query(sql, [category]);
 
