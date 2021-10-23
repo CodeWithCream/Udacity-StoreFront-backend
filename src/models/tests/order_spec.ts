@@ -1,14 +1,13 @@
-import { Order, OrderStore } from "../order";
 import Client from "../../database";
+import { Order, OrderStore } from "../order";
 import { Product, ProductStore } from "../product";
 import { ProductCategory } from "../product_category";
 import { User, UserStore } from "../user";
 import { OrderProduct } from "../order_products";
-import e from "express";
 
-const userStore = new UserStore();
-const productStore = new ProductStore();
-const store = new OrderStore();
+const userorderStore = new UserStore();
+const productorderStore = new ProductStore();
+const orderStore = new OrderStore();
 
 describe("Test order model", () => {
 	beforeEach(async function () {
@@ -20,11 +19,11 @@ describe("Test order model", () => {
 	});
 
 	it("should have an index method", () => {
-		expect(store.index).toBeDefined();
+		expect(orderStore.index).toBeDefined();
 	});
 
 	it("index method should return a list of orders", async () => {
-		const createdOrders = await store.index();
+		const createdOrders = await orderStore.index();
 
 		expect(createdOrders.length).toEqual(initOrderTestData.length);
 
@@ -38,22 +37,24 @@ describe("Test order model", () => {
 	});
 
 	it("should have a show method", () => {
-		expect(store.show).toBeDefined();
+		expect(orderStore.show).toBeDefined();
 	});
 
 	it("show method should return the correct order without products", async () => {
-		const order = await store.show(3);
-		checkOrderProperties(order, initOrderTestData[2]);
+		const orderId = 3;
+		const order = await orderStore.show(orderId);
+		checkOrderProperties(order, initOrderTestData[orderId - 1]);
 	});
 
 	it("show method should return the correct order with products", async () => {
-		const order = await store.show(1);
-		checkOrderProperties(order, initOrderTestData[0]);
+		const orderId = 1;
+		const order = await orderStore.show(orderId);
+		checkOrderProperties(order, initOrderTestData[orderId - 1]);
 	});
 
 	it("show method should throw error when order not exists", async () => {
 		const orderId = 10;
-		await expectAsync(store.show(orderId)).toBeRejectedWith(
+		await expectAsync(orderStore.show(orderId)).toBeRejectedWith(
 			new Error(
 				`Could not find order with id ${orderId}. Error: Order doesn't exist.`
 			)
@@ -61,12 +62,12 @@ describe("Test order model", () => {
 	});
 
 	it("should have a create method", () => {
-		expect(store.create).toBeDefined();
+		expect(orderStore.create).toBeDefined();
 	});
 
 	it("create method should add an order", async () => {
 		const userId = 3;
-		const createdOrder = await store.create(userId);
+		const createdOrder = await orderStore.create(userId);
 
 		expect(createdOrder.id).toBeDefined();
 		expect(createdOrder.userId).toEqual(userId);
@@ -76,9 +77,9 @@ describe("Test order model", () => {
 
 	it("create method should throw an error if an user already has an active order", async () => {
 		const userId = 3;
-		await store.create(userId);
+		await orderStore.create(userId);
 
-		await expectAsync(store.create(userId)).toBeRejectedWith(
+		await expectAsync(orderStore.create(userId)).toBeRejectedWith(
 			new Error(
 				`Could not create new order. Error: User already has an active order.`
 			)
@@ -88,7 +89,7 @@ describe("Test order model", () => {
 	it("create method should throw an error if user doesn't exist", async () => {
 		const userId = 10;
 
-		await expectAsync(store.create(userId)).toBeRejectedWith(
+		await expectAsync(orderStore.create(userId)).toBeRejectedWith(
 			new Error(
 				`Could not create new order. error: insert or update on table "orders" violates foreign key constraint "orders_user_id_fkey"`
 			)
@@ -96,22 +97,25 @@ describe("Test order model", () => {
 	});
 
 	it("should have a delete method", () => {
-		expect(store.delete).toBeDefined();
+		expect(orderStore.delete).toBeDefined();
 	});
 
 	it("delete method should remove the order without products", async () => {
-		const deletedOrder = await store.delete(3);
-		checkOrderProperties(deletedOrder, initOrderTestData[2]);
+		const orderId = 3;
+		const deletedOrder = await orderStore.delete(orderId);
+		checkOrderProperties(deletedOrder, initOrderTestData[orderId - 1]);
 	});
 
 	it("delete method should remove the order with products", async () => {
 		const orderId = 1;
-		const deletedOrder = await store.delete(orderId);
+		const deletedOrder = await orderStore.delete(orderId);
 
 		expect(deletedOrder.id).toEqual(orderId);
-		expect(deletedOrder.userId).toEqual(initOrderTestData[0].userId);
+		expect(deletedOrder.userId).toEqual(
+			initOrderTestData[orderId - 1].userId
+		);
 		expect(deletedOrder.isCompleted).toEqual(
-			initOrderTestData[0].isCompleted
+			initOrderTestData[orderId - 1].isCompleted
 		);
 
 		const sql = `SELECT * FROM order_products WHERE order_id = ${orderId};`;
@@ -123,21 +127,22 @@ describe("Test order model", () => {
 	});
 
 	it("delete method should execute successfully when order doesn't exist", async () => {
-		const deletedOrder = await store.delete(10);
+		const orderId = 10;
+		const deletedOrder = await orderStore.delete(orderId);
 		expect(deletedOrder).toBeUndefined();
 	});
 
 	it("should have a addProduct method", () => {
-		expect(store.addProduct).toBeDefined();
+		expect(orderStore.addProduct).toBeDefined();
 	});
 
 	it("addProduct method should add a product to existing order", async () => {
 		const orderId = 5;
 		const productId = 1;
 		const quantity = 5;
-		await store.addProduct(orderId, productId, quantity);
+		await orderStore.addProduct(orderId, productId, quantity);
 
-		const updatedOrder = await store.show(orderId);
+		const updatedOrder = await orderStore.show(orderId);
 
 		expect(updatedOrder.products?.length).toEqual(
 			(<OrderProduct[]>initOrderTestData[orderId - 1].products).length + 1
@@ -155,7 +160,7 @@ describe("Test order model", () => {
 		const quantity = 5;
 
 		await expectAsync(
-			store.addProduct(orderId, productId, quantity)
+			orderStore.addProduct(orderId, productId, quantity)
 		).toBeRejectedWith(
 			new Error(
 				`Could not add product with id ${productId} to order with id ${orderId}. Error: Order is completed`
@@ -167,9 +172,9 @@ describe("Test order model", () => {
 		const orderId = 5;
 		const productId = 3;
 		const quantity = 5;
-		await store.addProduct(orderId, productId, quantity);
+		await orderStore.addProduct(orderId, productId, quantity);
 
-		const updatedOrder = await store.show(orderId);
+		const updatedOrder = await orderStore.show(orderId);
 
 		expect(updatedOrder.products?.length).toEqual(
 			(<OrderProduct[]>initOrderTestData[orderId - 1].products).length
@@ -188,7 +193,7 @@ describe("Test order model", () => {
 		const quantity = 5;
 
 		await expectAsync(
-			store.addProduct(orderId, productId, quantity)
+			orderStore.addProduct(orderId, productId, quantity)
 		).toBeRejectedWith(
 			new Error(
 				`Could not add product with id ${productId} to order with id ${orderId}. Error: Order doesn't exist`
@@ -197,16 +202,16 @@ describe("Test order model", () => {
 	});
 
 	it("should have a completeOrder method", () => {
-		expect(store.completeOrder).toBeDefined();
+		expect(orderStore.completeOrder).toBeDefined();
 	});
 
 	it("completeOrder should complete active order", async () => {
 		const orderId = 5;
 		expect(initOrderTestData[orderId - 1].isCompleted).toBeFalse();
 
-		await store.completeOrder(orderId);
+		await orderStore.completeOrder(orderId);
 
-		const order = await store.show(orderId);
+		const order = await orderStore.show(orderId);
 		expect(order.isCompleted).toBeTrue();
 	});
 
@@ -214,16 +219,16 @@ describe("Test order model", () => {
 		const orderId = 1;
 		expect(initOrderTestData[orderId - 1].isCompleted).toBeTrue();
 
-		await store.completeOrder(orderId);
+		await orderStore.completeOrder(orderId);
 
-		const order = await store.show(orderId);
+		const order = await orderStore.show(orderId);
 		expect(order.isCompleted).toBeTrue();
 	});
 
 	it("completeOrder method should throw an error if order doesn't exist", async () => {
 		const orderId = 10;
 
-		await expectAsync(store.completeOrder(orderId)).toBeRejectedWith(
+		await expectAsync(orderStore.completeOrder(orderId)).toBeRejectedWith(
 			new Error(
 				`Could not complete order with id ${orderId}. Error: Order doesn't exist`
 			)
@@ -231,12 +236,12 @@ describe("Test order model", () => {
 	});
 
 	it("should have a showByUser method", () => {
-		expect(store.showByUser).toBeDefined();
+		expect(orderStore.showByUser).toBeDefined();
 	});
 
 	it("showByUser method should return orders for user", async () => {
 		const userId = 1;
-		const orders = await store.showByUser(userId);
+		const orders = await orderStore.showByUser(userId);
 
 		expect(orders.length).toEqual(3);
 		let i = 0;
@@ -247,7 +252,7 @@ describe("Test order model", () => {
 
 	it("showByUser method should return completed orders for user", async () => {
 		const userId = 1;
-		const orders = await store.showByUser(userId, true);
+		const orders = await orderStore.showByUser(userId, true);
 
 		expect(orders.length).toEqual(2);
 		let i = 0;
@@ -258,7 +263,7 @@ describe("Test order model", () => {
 
 	it("showByUser method should return active order for user", async () => {
 		const userId = 1;
-		const orders = await store.showByUser(userId, false);
+		const orders = await orderStore.showByUser(userId, false);
 
 		expect(orders.length).toEqual(1);
 		checkOrderProperties(orders[0], initOrderTestData[2]);
@@ -266,32 +271,32 @@ describe("Test order model", () => {
 
 	it("showByUser methoud should return empty if user has no orders", async () => {
 		const userId = 3;
-		const orders = await store.showByUser(userId);
+		const orders = await orderStore.showByUser(userId);
 
 		expect(orders.length).toEqual(0);
 	});
 
 	it("showByUser methoud should return empty if user doesn't exist", async () => {
 		const userId = 10;
-		const orders = await store.showByUser(userId);
+		const orders = await orderStore.showByUser(userId);
 
 		expect(orders.length).toEqual(0);
 	});
 
 	async function addTestData(): Promise<void> {
 		for await (const user of initUsersTestData) {
-			await userStore.create(user);
+			await userorderStore.create(user);
 		}
 
 		for await (const product of initProductsTestData) {
-			await productStore.create(product);
+			await productorderStore.create(product);
 		}
 
 		for await (const order of initOrderTestData) {
-			const createdOrder = await store.create(order.userId);
+			const createdOrder = await orderStore.create(order.userId);
 			if (order.products) {
 				for await (const product of order.products) {
-					await store.addProduct(
+					await orderStore.addProduct(
 						<number>createdOrder.id,
 						product.productId,
 						product.quanity
@@ -299,7 +304,7 @@ describe("Test order model", () => {
 				}
 			}
 			if (order.isCompleted) {
-				await store.completeOrder(<number>createdOrder.id);
+				await orderStore.completeOrder(<number>createdOrder.id);
 			}
 		}
 	}
@@ -417,7 +422,7 @@ describe("Test order model", () => {
 		},
 	];
 
-	function checkOrderProperties(createdOrder: Order, testOrder: Order) {
+	function checkOrderProperties(createdOrder: Order, testOrder: Order): void {
 		expect(createdOrder.id).toBeDefined();
 		expect(createdOrder.userId).toEqual(testOrder.userId);
 		expect(createdOrder.isCompleted).toEqual(testOrder.isCompleted);

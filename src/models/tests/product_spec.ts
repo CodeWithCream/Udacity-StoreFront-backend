@@ -1,12 +1,12 @@
-import { Product, ProductStore } from "../product";
 import Client from "../../database";
+import { Product, ProductStore } from "../product";
 import { ProductCategory } from "../product_category";
 import { User, UserStore } from "../user";
 import { Order, OrderStore } from "../order";
 
 const userStore = new UserStore();
 const orderStore = new OrderStore();
-const store = new ProductStore();
+const productsStore = new ProductStore();
 
 describe("Test product model", () => {
 	describe("Test basic operations", () => {
@@ -19,11 +19,11 @@ describe("Test product model", () => {
 		});
 
 		it("should have an index method", () => {
-			expect(store.index).toBeDefined();
+			expect(productsStore.index).toBeDefined();
 		});
 
 		it("index method should return a list of products", async () => {
-			const products = await store.index();
+			const products = await productsStore.index();
 			let i = 0;
 			products.forEach((product) => {
 				expect(product.id).toBeDefined();
@@ -32,17 +32,18 @@ describe("Test product model", () => {
 		});
 
 		it("should have a show method", () => {
-			expect(store.show).toBeDefined();
+			expect(productsStore.show).toBeDefined();
 		});
 
 		it("show method should return the correct product", async () => {
-			const product = await store.show(1);
-			checkProductProperties(initTestData[0], product);
+			const productId = 1;
+			const product = await productsStore.show(productId);
+			checkProductProperties(initTestData[productId - 1], product);
 		});
 
 		it("show method should throw error when product not exists", async () => {
 			const productId = 10;
-			await expectAsync(store.show(productId)).toBeRejectedWith(
+			await expectAsync(productsStore.show(productId)).toBeRejectedWith(
 				new Error(
 					`Could not find product with id ${productId}. Error: Product doesn't exist.`
 				)
@@ -50,7 +51,7 @@ describe("Test product model", () => {
 		});
 
 		it("should have a create method", () => {
-			expect(store.create).toBeDefined();
+			expect(productsStore.create).toBeDefined();
 		});
 
 		it("create method should add a product", async () => {
@@ -60,7 +61,7 @@ describe("Test product model", () => {
 				category: ProductCategory.Other,
 			};
 
-			const createdProduct = await store.create(productToCreate);
+			const createdProduct = await productsStore.create(productToCreate);
 
 			checkProductProperties(productToCreate, createdProduct);
 		});
@@ -72,25 +73,28 @@ describe("Test product model", () => {
 				category: ProductCategory.Other,
 			};
 
-			await expectAsync(store.create(productToCreate)).toBeRejectedWith(
+			await expectAsync(
+				productsStore.create(productToCreate)
+			).toBeRejectedWith(
 				new Error(
 					`Could not create new product ${productToCreate.name}. error: duplicate key value violates unique constraint "products_name_key"`
 				)
 			);
 
-			const products = await store.index();
+			const products = await productsStore.index();
 			expect(products.length).toEqual(initTestData.length); //no new products added
 		});
 
 		it("should have a delete method", () => {
-			expect(store.delete).toBeDefined();
+			expect(productsStore.delete).toBeDefined();
 		});
 
 		it("delete method should remove the product", async () => {
-			const deletedProduct = await store.delete(1);
-			checkProductProperties(deletedProduct, initTestData[0]);
+			const productId = 1;
+			const deletedProduct = await productsStore.delete(productId);
+			checkProductProperties(deletedProduct, initTestData[productId - 1]);
 
-			const products = await store.index();
+			const products = await productsStore.index();
 
 			expect(products.length).toEqual(initTestData.length - 1);
 			let i = 1;
@@ -100,9 +104,28 @@ describe("Test product model", () => {
 		});
 
 		it("delete method should execute successfully when product doesn't exist", async () => {
-			const deletedProduct = await store.delete(10);
+			const productId = 10;
+			const deletedProduct = await productsStore.delete(productId);
 			expect(deletedProduct).toBeUndefined();
 		});
+
+		async function addTestData(): Promise<void> {
+			for await (const product of initTestData) {
+				await productsStore.create(product);
+			}
+		}
+
+		async function clearTestData(): Promise<void> {
+			try {
+				const sql =
+					"DELETE FROM products; ALTER SEQUENCE products_id_seq RESTART WITH 1;";
+				const conn = await Client.connect();
+				await conn.query(sql);
+				conn.release();
+			} catch (error) {
+				throw new Error(`Could not delete test data. Error: ${error}`);
+			}
+		}
 
 		const initTestData: Product[] = [
 			{
@@ -121,24 +144,6 @@ describe("Test product model", () => {
 				category: ProductCategory.Electronics,
 			},
 		];
-
-		async function addTestData(): Promise<void> {
-			for await (const product of initTestData) {
-				await store.create(product);
-			}
-		}
-
-		async function clearTestData(): Promise<void> {
-			try {
-				const sql =
-					"DELETE FROM products; ALTER SEQUENCE products_id_seq RESTART WITH 1;";
-				const conn = await Client.connect();
-				await conn.query(sql);
-				conn.release();
-			} catch (error) {
-				throw new Error(`Could not delete test data. Error: ${error}`);
-			}
-		}
 	});
 
 	describe("Test complex operations", () => {
@@ -151,11 +156,11 @@ describe("Test product model", () => {
 		});
 
 		it("should have a mostPopular method", () => {
-			expect(store.mostPopular).toBeDefined();
+			expect(productsStore.mostPopular).toBeDefined();
 		});
 
 		it("mostPopular method should return top 3 products contained in most orders", async () => {
-			const top3 = await store.mostPopular(3);
+			const top3 = await productsStore.mostPopular(3);
 
 			expect(top3.length).toEqual(3);
 
@@ -171,7 +176,7 @@ describe("Test product model", () => {
 			const order1 = await orderStore.create(1);
 			await orderStore.addProduct(<number>order1.id, 8, 10000); //added large quantity but popularity is not changed
 
-			const top5 = await store.mostPopular(5);
+			const top5 = await productsStore.mostPopular(5);
 
 			expect(top5.length).toEqual(5);
 
@@ -193,17 +198,17 @@ describe("Test product model", () => {
 			const order2 = await orderStore.create(2);
 			await orderStore.addProduct(<number>order2.id, 5, 1);
 
-			const top3 = await store.mostPopular(3);
+			const top3 = await productsStore.mostPopular(3);
 			const top3Ids = top3.map((product) => product.id);
 			expect(top3Ids).toEqual([3, 2, 5]);
 		});
 
 		it("should have a productsByCategory method", () => {
-			expect(store.productsByCategory).toBeDefined();
+			expect(productsStore.productsByCategory).toBeDefined();
 		});
 
 		it("productsByCategory method should return FOOD products", async () => {
-			const foodProducts = await store.productsByCategory(
+			const foodProducts = await productsStore.productsByCategory(
 				ProductCategory.Food
 			);
 
@@ -214,13 +219,15 @@ describe("Test product model", () => {
 		});
 
 		it("productsByCategory should return empty array when category doesn't exist", async () => {
-			const foodProducts = await store.productsByCategory("nature");
+			const foodProducts = await productsStore.productsByCategory(
+				"nature"
+			);
 
 			expect(foodProducts.length).toEqual(0);
 		});
 
 		it("productsByCategory should return empty array when no products of category found", async () => {
-			const foodProducts = await store.productsByCategory(
+			const foodProducts = await productsStore.productsByCategory(
 				ProductCategory.Household
 			);
 
@@ -233,7 +240,7 @@ describe("Test product model", () => {
 			}
 
 			for await (const product of initProductsTestData) {
-				await store.create(product);
+				await productsStore.create(product);
 			}
 
 			for await (const order of initOrderTestData) {

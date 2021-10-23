@@ -12,13 +12,15 @@ export class ProductStore {
 	async index(): Promise<Product[]> {
 		try {
 			const conn = await Client.connect();
-			const sql = "SELECT * FROM products";
+			try {
+				const sql = "SELECT * FROM products";
+				const result = await conn.query(sql);
+				const products = this.mapRowsToProducts(result.rows);
 
-			const result = await conn.query(sql);
-
-			conn.release();
-
-			return this.mapRows(result.rows);
+				return products;
+			} finally {
+				conn.release();
+			}
 		} catch (error) {
 			throw new Error(`Could not get products. ${error}`);
 		}
@@ -27,17 +29,19 @@ export class ProductStore {
 	async show(id: number): Promise<Product> {
 		try {
 			const conn = await Client.connect();
-			const sql = "SELECT * FROM products WHERE id=($1)";
+			try {
+				const sql = "SELECT * FROM products WHERE id=($1)";
+				const result = await conn.query(sql, [id]);
 
-			const result = await conn.query(sql, [id]);
+				if (result.rows.length === 0) {
+					throw new Error("Product doesn't exist.");
+				}
 
-			conn.release();			
-
-			if (result.rows.length === 0) {
-				throw new Error("Product doesn't exist.");
+				const product = this.mapRowsToProducts(result.rows)[0];
+				return product;
+			} finally {
+				conn.release();
 			}
-
-			return this.mapRows(result.rows)[0];
 		} catch (error) {
 			throw new Error(`Could not find product with id ${id}. ${error}`);
 		}
@@ -46,18 +50,21 @@ export class ProductStore {
 	async create(product: Product): Promise<Product> {
 		try {
 			const conn = await Client.connect();
-			const sql =
-				"INSERT INTO products(name, price, category) VALUES ($1,$2,$3) RETURNING *";
+			try {
+				const sql =
+					"INSERT INTO products(name, price, category) VALUES ($1,$2,$3) RETURNING *";
 
-			const result = await conn.query(sql, [
-				product.name,
-				product.price,
-				product.category,
-			]);
-			const createdProduct = this.mapRows(result.rows)[0];
-			conn.release();
+				const result = await conn.query(sql, [
+					product.name,
+					product.price,
+					product.category,
+				]);
+				const createdProduct = this.mapRowsToProducts(result.rows)[0];
 
-			return createdProduct;
+				return createdProduct;
+			} finally {
+				conn.release();
+			}
 		} catch (error) {
 			throw new Error(
 				`Could not create new product ${product.name}. ${error}`
@@ -67,17 +74,19 @@ export class ProductStore {
 
 	async delete(id: number): Promise<Product> {
 		try {
-			const sql = "DELETE FROM products WHERE id=($1) RETURNING *";
-			//if product is in some orders, database will throw an error so product will not be deleted so we don't need to check it manually for this app
 			const conn = await Client.connect();
+			try {
+				const sql = "DELETE FROM products WHERE id=($1) RETURNING *";
+				//if product is in some orders, database will throw an error so product will
+				//not be deleted so we don't need to check it manually for this app
 
-			const result = await conn.query(sql, [id]);
+				const result = await conn.query(sql, [id]);
+				const deletedProduct = this.mapRowsToProducts(result.rows)[0];
 
-			const deletedProduct = this.mapRows(result.rows)[0];
-
-			conn.release();
-
-			return deletedProduct;
+				return deletedProduct;
+			} finally {
+				conn.release();
+			}
 		} catch (error) {
 			throw new Error(
 				`Could not delete product with id = ${id}. ${error}`
@@ -89,18 +98,21 @@ export class ProductStore {
 		try {
 			const conn = await Client.connect();
 
-			const sql = `SELECT products.*
-			FROM products 
-			JOIN order_products ON products.id=order_products.product_id
-			GROUP BY (products.id)
-			ORDER BY COUNT(product_id) DESC, id ASC
-			LIMIT ($1)`;
+			try {
+				const sql = `SELECT products.*
+							FROM products 
+							JOIN order_products ON products.id=order_products.product_id
+							GROUP BY (products.id)
+							ORDER BY COUNT(product_id) DESC, id ASC
+							LIMIT ($1)`;
 
-			const result = await conn.query(sql, [count]);
+				const result = await conn.query(sql, [count]);
+				const products = this.mapRowsToProducts(result.rows);
 
-			conn.release();
-
-			return this.mapRows(result.rows);
+				return products;
+			} finally {
+				conn.release();
+			}
 		} catch (error) {
 			throw new Error(`Could not get popular products. ${error}`);
 		}
@@ -110,13 +122,15 @@ export class ProductStore {
 		try {
 			const conn = await Client.connect();
 
-			const sql = "SELECT * FROM products WHERE category = ($1)";
+			try {
+				const sql = "SELECT * FROM products WHERE category = ($1)";
+				const result = await conn.query(sql, [category]);
+				const products = this.mapRowsToProducts(result.rows);
 
-			const result = await conn.query(sql, [category]);
-
-			conn.release();
-
-			return this.mapRows(result.rows);
+				return products;
+			} finally {
+				conn.release();
+			}
 		} catch (error) {
 			throw new Error(
 				`Could not get products with category ${category}. ${error}`
@@ -125,7 +139,7 @@ export class ProductStore {
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	private mapRows(rows: any[]): Product[] {
+	private mapRowsToProducts(rows: any[]): Product[] {
 		const products = new Array<Product>();
 		rows.forEach((row) => {
 			products.push({
