@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express, { Request, response, Response } from "express";
 import { User, UserStore } from "../models/user";
 
 const store = new UserStore();

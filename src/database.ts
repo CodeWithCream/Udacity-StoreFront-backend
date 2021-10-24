@@ -18,19 +18,21 @@ const {
 let client: Pool;
 
 if (ENV === "test") {
-	client = new Pool({
-		host: DATABASE_HOST,
-		database: DATABASE_NAME,
-		user: DATABASE_USER,
-		password: DATABASE_PASSWORD,
-	});
-} else {
-	/*dev*/
+	console.log("TEST");
 	client = new Pool({
 		host: TEST_DATABASE_HOST,
 		database: TEST_DATABASE_NAME,
 		user: TEST_DATABASE_USER,
 		password: TEST_DATABASE_PASSWORD,
+	});
+} else {
+	/*dev*/
+	console.log("DEV|PROD");
+	client = new Pool({
+		host: DATABASE_HOST,
+		database: DATABASE_NAME,
+		user: DATABASE_USER,
+		password: DATABASE_PASSWORD,
 	});
 }
 
