@@ -3,19 +3,19 @@ import { DashboardQueries } from "../services/dashboard";
 
 const dashboard = new DashboardQueries();
 
-const popularProducts = async (_req: Request, res: Response) => {
-	res.status(400);
-	// try {
-	// 	const products = await dashboard.popularProducts();
-	// 	res.json(products);
-	// } catch (error) {
-	// 	console.log(error);
-	// 	res.status(500).send((error as Error).message);
-	// }
+const popularProducts = async (req: Request, res: Response) => {
+	const count: number = parseInt(req.query.count as string);
+	try {
+		const products = await dashboard.mostPopular(count);
+		res.json(products);
+	} catch (error) {
+		console.log(error);
+		res.status(500).send((error as Error).message);
+	}
 };
 
 const dashboardRoutes = (app: express.Application) => {
-	app.get("products/popular", popularProducts);
+	app.get("/popular-products", popularProducts);
 };
 
 export default dashboardRoutes;

@@ -12,7 +12,7 @@ These are the notes from a meeting with the frontend developer that describe wha
 - Create [token required]
     - route: '/products' [POST]
 - [OPTIONAL] Top 5 most popular products 
-    - route: '/products/popular' [GET]
+    - route: '/products/popular_count=5' [GET]
 - [OPTIONAL] Products by category (args: product category)
     - route: '/products?category=food' [GET]
 

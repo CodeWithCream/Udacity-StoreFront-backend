@@ -6,8 +6,8 @@ const store = new OrderStore();
 const currentOrderByUser = async (req: Request, res: Response) => {
 	const userId: number = parseInt(req.params.id);
 	try {
-		const products = await store.showByUser(userId, false);
-		res.json(products[0]);
+		const orders = await store.showByUser(userId, false);
+		res.json(orders != undefined ? orders[0] : undefined);
 	} catch (error) {
 		console.log(error);
 		return res.status(500).send((error as Error).message);
@@ -15,7 +15,6 @@ const currentOrderByUser = async (req: Request, res: Response) => {
 };
 
 const userOrders = async (req: Request, res: Response) => {
-	console.log(req.params);
 	const userId: number = parseInt(req.params.id);
 	const completedQueryString = req.query.completed;
 	const isCompleted =

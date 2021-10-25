@@ -92,31 +92,7 @@ export class ProductStore {
 				`Could not delete product with id = ${id}. ${error}`
 			);
 		}
-	}
-
-	async mostPopular(count: number): Promise<Product[]> {
-		try {
-			const conn = await Client.connect();
-
-			try {
-				const sql = `SELECT products.*
-							FROM products 
-							JOIN order_products ON products.id=order_products.product_id
-							GROUP BY (products.id)
-							ORDER BY COUNT(product_id) DESC, id ASC
-							LIMIT ($1)`;
-
-				const result = await conn.query(sql, [count]);
-				const products = this.mapRowsToProducts(result.rows);
-
-				return products;
-			} finally {
-				conn.release();
-			}
-		} catch (error) {
-			throw new Error(`Could not get popular products. ${error}`);
-		}
-	}
+	}	
 
 	async productsByCategory(category: string): Promise<Product[]> {
 		try {
