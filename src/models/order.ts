@@ -37,7 +37,8 @@ export class OrderStore {
 			FROM orders 
 			LEFT OUTER JOIN order_products ON orders.id=order_products.order_id
 			LEFT OUTER JOIN products ON order_products.product_id = products.id
-			WHERE orders.id=($1)`;
+			WHERE orders.id=($1)
+			ORDER BY order_products.id ASC`;
 
 				const result = await conn.query(sql, [id]);
 
