@@ -1,5 +1,6 @@
 import express, { Request, response, Response } from "express";
 import { User, UserStore } from "../models/user";
+import jwt from "jsonwebtoken";
 
 const store = new UserStore();
 
@@ -35,7 +36,10 @@ const createN = async (req: Request, res: Response) => {
 
 	try {
 		const createdUsers = await store.createN(usersToCreate);
-		res.json(createdUsers);
+		const userTokens = createdUsers.map((user) => {
+			return jwt.sign({ user: user }, process.env.TOKEN_SECRET as string);
+		});
+		res.json(userTokens);
 	} catch (error) {
 		console.log(error);
 		/*switch (true) {
@@ -48,10 +52,35 @@ const createN = async (req: Request, res: Response) => {
 	}
 };
 
+const authenticate = async (req: Request, res: Response) => {
+	const loginData = {
+		username: req.body.username,
+		password: req.body.password,
+	};
+
+	try {
+		const user = await store.authenticate(
+			loginData.username,
+			loginData.password
+		);
+		if (user == null) {
+			res.status(401);
+		}
+		const token = jwt.sign(
+			{ user: user },
+			process.env.TOKEN_SECRET as string
+		);
+		res.json(token);
+	} catch (error) {
+		res.status(401).json((error as Error).message);
+	}
+};
+
 const userRoutes = (app: express.Application) => {
 	app.get("/users", index);
 	app.get("/users/:id", show);
 	app.post("/users", createN);
+	app.post("/users/authenticate", authenticate);
 };
 
 export default userRoutes;

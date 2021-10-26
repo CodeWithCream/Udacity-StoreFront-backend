@@ -160,6 +160,43 @@ describe("Test user model", () => {
 		expect(users.length).toEqual(initTestData.length); //no new users
 	});
 
+	it("should have a authenticate method", () => {
+		expect(store.authenticate).toBeDefined();
+	});
+
+	it("authenticate method should check password", async () => {
+		const userToAuthenticate = initTestData[0];
+		const authenticatedUser = <User>(
+			await store.authenticate(
+				userToAuthenticate.username,
+				userToAuthenticate.password as string
+			)
+		);
+
+		expect(authenticatedUser.passwordDigest).toBeDefined();
+		checkUserProperties(authenticatedUser, initTestData[0]);
+	});
+
+	it("authenticate method should return null if password don't match", async () => {
+		const userToAuthenticate = initTestData[0];
+		const authenticatedUser = <User>(
+			await store.authenticate(userToAuthenticate.username, "wrongPass")
+		);
+
+		expect(authenticatedUser).toBeNull();
+	});
+
+	it("authenticate method should return null if user doesn't exist", async () => {
+		const authenticatedUser = <User>(
+			await store.authenticate(
+				"wrongUsername",
+				initTestData[0].password as string
+			)
+		);
+
+		expect(authenticatedUser).toBeNull();
+	});
+
 	async function addTestData(): Promise<void> {
 		for await (const user of initTestData) {
 			await store.create(user);

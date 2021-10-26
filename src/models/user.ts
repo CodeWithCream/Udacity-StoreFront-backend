@@ -1,6 +1,7 @@
 import Client from "../database";
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
+import userRoutes from "../handlers/user";
 
 dotenv.config();
 
@@ -20,7 +21,7 @@ export class UserStore {
 		try {
 			const conn = await Client.connect();
 			try {
-				const sql = "SELECT * FROM users";
+				const sql = "SELECT * FROM users ORDER BY id";
 				const result = await conn.query(sql);
 				const users = this.mapRowsToUsers(result.rows);
 
@@ -162,6 +163,42 @@ export class UserStore {
 		}
 	}
 
+	async authenticate(
+		username: string,
+		password: string
+	): Promise<User | null> {
+		try {
+			const conn = await Client.connect();
+
+			try {
+				const sql =
+					"SELECT * FROM users WHERE username=($1)";
+				const result = await conn.query(sql, [username]);
+
+				if (result.rows.length) {
+					const user = this.mapRowsToUsers(result.rows)[0];					
+					console.log(user);
+					if (
+						bcrypt.compareSync(
+							password + process.env.pepper,
+							user.passwordDigest as string
+						)
+					) {
+						console.log("PASSED");
+						return user;
+					}
+				}
+				return null;
+			} finally {
+				conn.release();
+			}
+		} catch (error) {
+			throw new Error(
+				`Could not authenticate user ${username}. ${error}`
+			);
+		}
+	}
+
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	private mapRowsToUsers(rows: any[]): User[] {
 		const users = new Array<User>();
@@ -171,8 +208,7 @@ export class UserStore {
 				firstname: row.first_name,
 				lastname: row.last_name,
 				username: row.username,
-				passwordDigest: row.password_digest,
-				password: row.password,
+				passwordDigest: row.password_digest
 			})
 		);
 		return users;

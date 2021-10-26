@@ -1,6 +1,7 @@
 import supertest from "supertest";
 import { User, UserStore } from "../models/user";
 import app from "../server";
+import jwt from "jsonwebtoken";
 
 const request = supertest(app);
 
@@ -8,6 +9,7 @@ describe("Test user API calls", () => {
 	const ok = 200;
 	const internalServerError = 500;
 	const badRequest = 400;
+	const unauthorized = 401;
 	const notFound = 404;
 
 	it("GET /users request should call UserStore", async () => {
@@ -87,13 +89,13 @@ describe("Test user API calls", () => {
 		//TODO
 	});
 
-	it("PUSH /users request should call UserStore", async () => {
+	it("POST /users request should call UserStore", async () => {
 		spyOn(UserStore.prototype, "createN");
 		await request.post("/users").send([]);
 		expect(UserStore.prototype.createN).toHaveBeenCalled();
 	});
 
-	it("PUSH /users hould return result from UserStore", async () => {
+	it("POST /users hould return result from UserStore", async () => {
 		const usersToCreate: User[] = [
 			{
 				firstname: "Andrea",
@@ -118,10 +120,20 @@ describe("Test user API calls", () => {
 		spyOn(UserStore.prototype, "createN").and.returnValue(
 			Promise.resolve(usersToReturn)
 		);
+		spyOn(jwt, "sign").and.callFake(function (
+			payload: string | Buffer | object
+		): string {
+			return JSON.stringify(payload);
+		});
 
 		const result = await request.post("/users").send(usersToCreate);
+		const createdUsers = (result.body as string[]).map((userString) => {
+			const userData = JSON.parse(userString);
+			return userData.user;
+		});
+
 		expect(result.status).toEqual(ok);
-		expect(result.body).toEqual(usersToReturn);
+		expect(createdUsers).toEqual(usersToReturn);
 	});
 
 	it("POST /users request should return InternalServerError if UserStore throws Error", async () => {
@@ -134,5 +146,53 @@ describe("Test user API calls", () => {
 
 	it("POST /users request should return BadRequest if UserStore throws ArgumentError", async () => {
 		//TODO
+	});
+
+	it("POST /users/authenticate request should call UserStore", async () => {
+		spyOn(UserStore.prototype, "authenticate");
+		const user = { username: "user", password: "pass" };
+		await request.post("/users/authenticate").send(user);
+		expect(UserStore.prototype.authenticate).toHaveBeenCalledWith(
+			user.username,
+			user.password
+		);
+	});
+
+	it("POST /users/authenticate should return token from jwt", async () => {
+		const userAuth = { username: "user", password: "pass" };
+		const user: User = {
+			firstname: "aaa",
+			lastname: "bbb",
+			username: userAuth.username,
+			passwordDigest: "abc123",
+		};
+
+		spyOn(UserStore.prototype, "authenticate").and.callFake(
+			function (): Promise<User | null> {
+				return Promise.resolve(user);
+			}
+		);
+
+		const expectedToken = jwt.sign(
+			{ user: user },
+			process.env.TOKEN_SECRET as string
+		);
+
+		const response = await request
+			.post("/users/authenticate")
+			.send(userAuth);
+
+		expect(response.body).toEqual(expectedToken);
+	});
+
+	it("POST /users request should return Unauthorized if UserStore returns null", async () => {
+		spyOn(UserStore.prototype, "authenticate").and.returnValue(
+			Promise.resolve(null)
+		);
+
+		const result = await request
+			.post("/users/authenticate")
+			.send({ username: "user", password: "pass" });
+		expect(result.status).toEqual(unauthorized);
 	});
 });
