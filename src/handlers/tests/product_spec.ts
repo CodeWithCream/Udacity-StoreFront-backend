@@ -2,16 +2,12 @@ import supertest from "supertest";
 import { Product, ProductStore } from "../../models/product";
 import { ProductCategory } from "../../models/product_category";
 import app from "../../server";
-import { AuthMiddleware } from "../middlewares/verify_auth_token";
-import { NextFunction, Request, Response } from "express";
 
 const request = supertest(app);
 
 describe("Test product API calls", () => {
 	const ok = 200;
 	const internalServerError = 500;
-	const badRequest = 400;
-	const notFound = 404;
 
 	it("GET /products request should call ProductStore", async () => {
 		spyOn(ProductStore.prototype, "index");
@@ -81,10 +77,6 @@ describe("Test product API calls", () => {
 		expect(result.status).toEqual(internalServerError);
 	});
 
-	it("GET /products/:id request should return NotFound if ProductStore throws NotFoundError", async () => {
-		//TODO
-	});
-
 	it("PUSH /products request should call ProductStore", async () => {
 		spyOn(ProductStore.prototype, "create");
 		await request.post("/products").send(productToCreate);
@@ -110,10 +102,6 @@ describe("Test product API calls", () => {
 
 		const result = await request.post("/products").send(productToCreate);
 		expect(result.status).toEqual(internalServerError);
-	});
-
-	it("POST /products request should return BadRequest if ProductStore throws ArgumentError", async () => {
-		//TODO
 	});
 
 	const productToCreate: Product = {

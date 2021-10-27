@@ -8,9 +8,7 @@ const request = supertest(app);
 describe("Test user API calls", () => {
 	const ok = 200;
 	const internalServerError = 500;
-	const badRequest = 400;
 	const unauthorized = 401;
-	const notFound = 404;
 
 	it("GET /users request should call UserStore", async () => {
 		spyOn(UserStore.prototype, "index");
@@ -85,10 +83,6 @@ describe("Test user API calls", () => {
 		expect(result.status).toEqual(internalServerError);
 	});
 
-	it("GET /users/:id request should return NotFound if UserStore throws NotFoundError", async () => {
-		//TODO
-	});
-
 	it("POST /users request should call UserStore", async () => {
 		spyOn(UserStore.prototype, "createN");
 		await request.post("/users").send([]);
@@ -142,10 +136,6 @@ describe("Test user API calls", () => {
 
 		const result = await request.post("/users").send([]);
 		expect(result.status).toEqual(internalServerError);
-	});
-
-	it("POST /users request should return BadRequest if UserStore throws ArgumentError", async () => {
-		//TODO
 	});
 
 	it("POST /users/authenticate request should call UserStore", async () => {
