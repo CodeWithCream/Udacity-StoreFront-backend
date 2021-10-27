@@ -24,6 +24,7 @@ db-migrate up
 
 ### ENV variables
 For the backend app to work, following ENV variables have to be filled. 
+```
 ENV=dev
 DATABASE_HOST
 DATABASE_NAME
@@ -32,6 +33,7 @@ DATABASE_PASSWORD
 SALT_ROUNDS
 PEPPER
 TOKEN_SECRET
+```
 
 ## Usage
 To use an API, frist you have to build and start the aplication:
@@ -67,10 +69,12 @@ etc.
 
 ## Testing
 To run tests, first create test database and fill ENV variables.
+```
 TEST_DATABASE_HOST
 TEST_DATABASE_NAME
 TEST_DATABASE_USER
 TEST_DATABASE_PASSWORD
+```
 
 Migrate database to newest version
 ```
