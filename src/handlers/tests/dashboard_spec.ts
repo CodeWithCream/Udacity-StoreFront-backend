@@ -1,8 +1,8 @@
 import supertest from "supertest";
-import { DashboardQueries } from "../services/dashboard";
-import app from "../server";
-import { Product } from "../models/product";
-import { ProductCategory } from "../models/product_category";
+import { DashboardQueries } from "../../services/dashboard";
+import app from "../../server";
+import { Product } from "../../models/product";
+import { ProductCategory } from "../../models/product_category";
 
 const request = supertest(app);
 

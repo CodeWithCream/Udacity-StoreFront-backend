@@ -1,7 +1,9 @@
 import supertest from "supertest";
-import { Product, ProductStore } from "../models/product";
-import { ProductCategory } from "../models/product_category";
-import app from "../server";
+import { Product, ProductStore } from "../../models/product";
+import { ProductCategory } from "../../models/product_category";
+import app from "../../server";
+import { AuthMiddleware } from "../middlewares/verify_auth_token";
+import { NextFunction, Request, Response } from "express";
 
 const request = supertest(app);
 
@@ -89,7 +91,7 @@ describe("Test product API calls", () => {
 		expect(ProductStore.prototype.create).toHaveBeenCalled();
 	});
 
-	it("PUSH /products hould return result from ProductStore", async () => {
+	it("PUSH /products should return result from ProductStore", async () => {
 		const productToReturn = JSON.parse(JSON.stringify(productToCreate));
 		productToReturn.id = 1;
 

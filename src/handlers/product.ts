@@ -1,7 +1,9 @@
 import express, { Request, Response } from "express";
 import { ProductStore } from "../models/product";
+import { AuthMiddleware } from "./middlewares/verify_auth_token";
 
 const store = new ProductStore();
+const authMiddleware = new AuthMiddleware();
 
 const index = async (_req: Request, res: Response) => {
 	try {
@@ -45,7 +47,7 @@ const create = async (req: Request, res: Response) => {
 const productRoutes = (app: express.Application) => {
 	app.get("/products", index);
 	app.get("/products/:id", show);
-	app.post("/products", create);
+	app.post("/products", authMiddleware.verifyAuthToken, create);
 };
 
 export default productRoutes;

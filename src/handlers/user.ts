@@ -1,8 +1,10 @@
-import express, { Request, response, Response } from "express";
+import express, { Request, Response } from "express";
 import { User, UserStore } from "../models/user";
 import jwt from "jsonwebtoken";
+import { AuthMiddleware } from "./middlewares/verify_auth_token";
 
 const store = new UserStore();
+const authMiddleware = new AuthMiddleware();
 
 const index = async (_req: Request, res: Response) => {
 	try {
@@ -77,9 +79,9 @@ const authenticate = async (req: Request, res: Response) => {
 };
 
 const userRoutes = (app: express.Application) => {
-	app.get("/users", index);
-	app.get("/users/:id", show);
-	app.post("/users", createN);
+	app.get("/users", authMiddleware.verifyAuthToken, index);
+	app.get("/users/:id", authMiddleware.verifyAuthToken, show);
+	app.post("/users", authMiddleware.verifyAuthToken, createN);
 	app.post("/users/authenticate", authenticate);
 };
 

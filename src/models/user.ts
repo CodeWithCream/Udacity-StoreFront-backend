@@ -1,7 +1,6 @@
 import Client from "../database";
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
-import userRoutes from "../handlers/user";
 
 dotenv.config();
 
@@ -176,15 +175,13 @@ export class UserStore {
 				const result = await conn.query(sql, [username]);
 
 				if (result.rows.length) {
-					const user = this.mapRowsToUsers(result.rows)[0];					
-					console.log(user);
+					const user = this.mapRowsToUsers(result.rows)[0];
 					if (
 						bcrypt.compareSync(
 							password + process.env.pepper,
 							user.passwordDigest as string
 						)
 					) {
-						console.log("PASSED");
 						return user;
 					}
 				}
