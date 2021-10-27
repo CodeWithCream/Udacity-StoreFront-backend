@@ -35,6 +35,12 @@ PEPPER
 TOKEN_SECRET
 ```
 
+## Fill test data
+If you want to fill the database with test data, you can run sql commands in INIT_DATA.sql file. 
+
+Password of "user1 is "u1_password";
+Password of "user2 is "u2_password";
+
 ## Usage
 To use an API, frist you have to build and start the aplication:
 

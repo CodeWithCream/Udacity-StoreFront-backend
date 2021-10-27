@@ -196,7 +196,7 @@ describe("Test user model", () => {
 
 		expect(authenticatedUser).toBeNull();
 	});
-
+	
 	async function addTestData(): Promise<void> {
 		for await (const user of initTestData) {
 			await store.create(user);

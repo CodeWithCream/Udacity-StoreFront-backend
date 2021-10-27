@@ -1,7 +1,9 @@
 import express, { Request, Response } from "express";
 import { OrderStore } from "../models/order";
+import { AuthMiddleware } from "./middlewares/verify_auth_token";
 
 const store = new OrderStore();
+const authMiddleware = new AuthMiddleware();
 
 const currentOrderByUser = async (req: Request, res: Response) => {
 	const userId: number = parseInt(req.params.id);
@@ -33,7 +35,7 @@ const userOrders = async (req: Request, res: Response) => {
 
 const orderRoutes = (app: express.Application) => {
 	app.get("/users/:id/currentOrder", currentOrderByUser);
-	app.get("/users/:id/orders", userOrders);
+	app.get("/users/:id/orders", authMiddleware.verifyAuthToken, userOrders);
 };
 
 export default orderRoutes;

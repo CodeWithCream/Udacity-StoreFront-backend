@@ -19,7 +19,8 @@ export class AuthMiddleware {
 
 				next();
 			} catch (error) {
-				res.status(401);
+				console.log(error);
+				res.status(401).send();
 			}
 		}
 	}

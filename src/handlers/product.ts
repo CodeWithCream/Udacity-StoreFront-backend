@@ -1,13 +1,20 @@
 import express, { Request, Response } from "express";
-import { ProductStore } from "../models/product";
+import { Product, ProductStore } from "../models/product";
 import { AuthMiddleware } from "./middlewares/verify_auth_token";
 
 const store = new ProductStore();
 const authMiddleware = new AuthMiddleware();
 
-const index = async (_req: Request, res: Response) => {
+const index = async (req: Request, res: Response) => {
+	const category: string = req.query.category as string;
 	try {
-		const products = await store.index();
+		let products: Product[] = [];
+		if (category === undefined) {
+			//get all
+			products = await store.index();
+		} else {
+			products = await store.productsByCategory(category);
+		}
 		res.json(products);
 	} catch (error) {
 		console.log(error);
@@ -22,18 +29,12 @@ const show = async (req: Request, res: Response) => {
 		res.json(product);
 	} catch (error) {
 		console.log(error);
-		/*switch (true) {
-            case e instanceof NotFoundError:
-              return res.status(404).send((error as Error).message);
-            default:
-              return res.status(500).send((error as Error).message);
-          }*/
 		return res.status(500).send((error as Error).message);
 	}
 };
 
 const create = async (req: Request, res: Response) => {
-	const productToCreate = req.body.product;
+	const productToCreate = req.body as Product;
 
 	try {
 		const createdProduct = await store.create(productToCreate);

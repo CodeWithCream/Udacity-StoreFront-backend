@@ -23,18 +23,12 @@ const show = async (req: Request, res: Response) => {
 		res.json(user);
 	} catch (error) {
 		console.log(error);
-		/*switch (true) {
-            case e instanceof NotFoundError:
-              return res.status(404).send((error as Error).message);
-            default:
-              return res.status(500).send((error as Error).message);
-          }*/
 		return res.status(500).send((error as Error).message);
 	}
 };
 
 const createN = async (req: Request, res: Response) => {
-	const usersToCreate: User[] = req.body.users;
+	const usersToCreate: User[] = req.body;
 
 	try {
 		const createdUsers = await store.createN(usersToCreate);
@@ -44,12 +38,6 @@ const createN = async (req: Request, res: Response) => {
 		res.json(userTokens);
 	} catch (error) {
 		console.log(error);
-		/*switch (true) {
-            case e instanceof NotFoundError:
-              return res.status(404).send((error as Error).message);
-            default:
-              return res.status(500).send((error as Error).message);
-          }*/
 		return res.status(500).send((error as Error).message);
 	}
 };
@@ -81,7 +69,7 @@ const authenticate = async (req: Request, res: Response) => {
 const userRoutes = (app: express.Application) => {
 	app.get("/users", authMiddleware.verifyAuthToken, index);
 	app.get("/users/:id", authMiddleware.verifyAuthToken, show);
-	app.post("/users", authMiddleware.verifyAuthToken, createN);
+	app.post("/users", createN); 
 	app.post("/users/authenticate", authenticate);
 };
 

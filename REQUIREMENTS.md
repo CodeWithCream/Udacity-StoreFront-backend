@@ -12,7 +12,7 @@ These are the notes from a meeting with the frontend developer that describe wha
 - Create [token required]
     - route: '/products' [POST]
 - [OPTIONAL] Top 5 most popular products 
-    - route: '/products/popular_count=5' [GET]
+    - route: '/popular-products?count=5' [GET]
 - [OPTIONAL] Products by category (args: product category)
     - route: '/products?category=food' [GET]
 
@@ -21,7 +21,7 @@ These are the notes from a meeting with the frontend developer that describe wha
     - route: '/users' [GET]
 - Show [token required]
     - route: '/users/:id' [GET]
-- Create N[token required]
+- Create N[~~token required~~]
     - route: '/users' [POST]
 
 #### Orders

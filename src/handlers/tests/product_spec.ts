@@ -45,6 +45,44 @@ describe("Test product API calls", () => {
 		expect(result.status).toEqual(internalServerError);
 	});
 
+	it("GET /products?category=food request should call ProductStore", async () => {
+		spyOn(ProductStore.prototype, "productsByCategory");
+		await request.get("/products?category=food");
+		expect(ProductStore.prototype.productsByCategory).toHaveBeenCalled();
+	});
+
+	it("GET /products?category=food request should return result from ProductStore", async () => {
+		const productsToReturn: Product[] = [
+			{
+				name: "Prod1",
+				price: 1,
+				category: ProductCategory.Food,
+			},
+			{
+				name: "Prod2",
+				price: 2,
+				category: ProductCategory.Books,
+			},
+		];
+		spyOn(ProductStore.prototype, "productsByCategory").and.returnValue(
+			Promise.resolve(productsToReturn)
+		);
+
+		const result = await request.get("/products?category=food");
+		expect(result.status).toEqual(ok);
+		expect(result.body).toEqual(productsToReturn);
+	});
+
+	it("GET /products?category=food request should return InternalServerError if ProductStore throws Error", async () => {
+		const errorToThrow = new Error("error message");
+		spyOn(ProductStore.prototype, "productsByCategory").and.throwError(
+			errorToThrow
+		);
+
+		const result = await request.get("/products?category=food");
+		expect(result.status).toEqual(internalServerError);
+	});
+
 	it("GET /users/:id request should call ProductStore", async () => {
 		spyOn(ProductStore.prototype, "show");
 		const productId = 1;
@@ -77,13 +115,13 @@ describe("Test product API calls", () => {
 		expect(result.status).toEqual(internalServerError);
 	});
 
-	it("PUSH /products request should call ProductStore", async () => {
+	it("POST /products request should call ProductStore", async () => {
 		spyOn(ProductStore.prototype, "create");
 		await request.post("/products").send(productToCreate);
 		expect(ProductStore.prototype.create).toHaveBeenCalled();
 	});
 
-	it("PUSH /products should return result from ProductStore", async () => {
+	it("POST /products should return result from ProductStore", async () => {
 		const productToReturn = JSON.parse(JSON.stringify(productToCreate));
 		productToReturn.id = 1;
 
