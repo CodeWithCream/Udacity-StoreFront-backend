@@ -35,6 +35,8 @@ PEPPER
 TOKEN_SECRET
 ```
 
+To test the backend app see ##Testing at the end of the file
+
 ## Fill test data
 If you want to fill the database with test data, you can run sql commands in INIT_DATA.sql file. 
 
@@ -65,6 +67,7 @@ or
 npm run build-and-run-prod
 ```
 
+The backend runs locally (127.0.0.1) on port 3001.
 To use an API just enter the URL in the browser or create request in the Postman.
 ```
 http://localhost:3001/products/
@@ -74,7 +77,7 @@ http://localhost:3001/orders/
 etc.
 
 ## Testing
-To run tests, first create test database and fill ENV variables.
+To run tests, first create test database and fill additional ENV variables.
 ```
 TEST_DATABASE_HOST
 TEST_DATABASE_NAME
