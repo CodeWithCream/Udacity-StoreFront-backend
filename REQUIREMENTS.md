@@ -51,6 +51,11 @@ These are the notes from a meeting with the frontend developer that describe wha
 - user_id
 - status of order (active or complete)
 
+#### Order Products
+- productId
+- product details filled when selected from database, null when inserting to database (then productId is used)
+- quanity
+
 ## Database tables
 - products (id: SERIAL PRIMARY KEY, name: VARCHAR, price: NUMERIC, category: VARCHAR(50))
 - users(id: SERIAL PRIMARY KEY, first_name: VARCHAR(100), last_name: VARCHAR(100), password_digest VARCHAR)
